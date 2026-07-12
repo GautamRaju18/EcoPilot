@@ -92,7 +92,11 @@ def run():
                         employee_count=25, status="Active")
         rnd = Department(name="R&D", code="RND", head="K. Sharma",
                          employee_count=40, status="Active")
-        db.add_all([manufacturing, operations, hr, rnd])
+        logistics = Department(name="Logistics", code="LOG", head="D. Costa",
+                               employee_count=60, status="Active")
+        finance = Department(name="Finance", code="FIN", head="P. Verma",
+                             employee_count=30, status="Active")
+        db.add_all([manufacturing, operations, hr, rnd, logistics, finance])
         db.commit()
 
         # ---------------- Users ----------------
@@ -115,12 +119,33 @@ def run():
         db.add_all([admin, manager, priya, raj, lena])
         db.commit()
 
+        # More employees for a fuller leaderboard / directory
+        extra = [
+            ("Diego Costa", "diego@ecopilot.com", "Manager", logistics.id, 410, 200, 4),
+            ("Mei Lin", "mei@ecopilot.com", "Employee", rnd.id, 360, 160, 3),
+            ("Omar Haddad", "omar@ecopilot.com", "Employee", operations.id, 240, 110, 2),
+            ("Sara Blomqvist", "sara@ecopilot.com", "Employee", hr.id, 150, 300, 1),
+            ("Tom Becker", "tom@ecopilot.com", "Employee", finance.id, 90, 60, 0),
+            ("Nadia Rahman", "nadia@ecopilot.com", "Employee", logistics.id, 300, 130, 3),
+            ("Kenji Tanaka", "kenji@ecopilot.com", "Employee", manufacturing.id, 200, 95, 2),
+        ]
+        for name, mail, role, dept, xp, pts, done in extra:
+            db.add(User(email=mail, hashed_password=hash_password("password123"),
+                        full_name=name, role=role, department_id=dept,
+                        xp=xp, points_balance=pts, completed_challenges=done))
+        db.commit()
+
         # ---------------- Categories ----------------
         cat_tree = Category(name="Tree Plantation", type="CSR Activity")
         cat_clean = Category(name="Clean-up Drive", type="CSR Activity")
         cat_energy = Category(name="Energy Saving", type="Challenge")
         cat_waste = Category(name="Waste Reduction", type="Challenge")
-        db.add_all([cat_tree, cat_clean, cat_energy, cat_waste])
+        cat_blood = Category(name="Blood Donation", type="CSR Activity")
+        cat_edu = Category(name="Community Education", type="CSR Activity")
+        cat_water = Category(name="Water Conservation", type="Challenge")
+        cat_commute = Category(name="Green Commute", type="Challenge")
+        db.add_all([cat_tree, cat_clean, cat_energy, cat_waste,
+                    cat_blood, cat_edu, cat_water, cat_commute])
         db.commit()
 
         # ---------------- Emission factors ----------------
@@ -132,7 +157,13 @@ def run():
                                    co2e_per_unit=0.15, description="Business air travel")
         ef_steel = EmissionFactor(activity_type="steel_kg", unit="kg",
                                   co2e_per_unit=1.85, description="Raw steel")
-        db.add_all([ef_elec, ef_diesel, ef_flight, ef_steel])
+        ef_gas = EmissionFactor(activity_type="natural_gas_m3", unit="m³",
+                                co2e_per_unit=2.02, description="Natural gas heating")
+        ef_paper = EmissionFactor(activity_type="paper_kg", unit="kg",
+                                  co2e_per_unit=0.94, description="Office paper")
+        ef_water = EmissionFactor(activity_type="water_m3", unit="m³",
+                                  co2e_per_unit=0.34, description="Municipal water")
+        db.add_all([ef_elec, ef_diesel, ef_flight, ef_steel, ef_gas, ef_paper, ef_water])
         db.commit()
 
         # ---------------- Products ----------------
@@ -141,6 +172,10 @@ def run():
                               recyclable_pct=85, ethical_sourcing="Fair Trade", esg_rating="A"),
             ProductESGProfile(product="Standard Widget", carbon_footprint=41.0,
                               recyclable_pct=40, ethical_sourcing="Conventional", esg_rating="C"),
+            ProductESGProfile(product="GreenPack Container", carbon_footprint=6.1,
+                              recyclable_pct=95, ethical_sourcing="Recycled", esg_rating="A"),
+            ProductESGProfile(product="Legacy Casing", carbon_footprint=58.3,
+                              recyclable_pct=20, ethical_sourcing="Conventional", esg_rating="D"),
         ])
 
         # ---------------- Environmental goals ----------------
@@ -153,6 +188,18 @@ def run():
                               target_value=50, unit="%",
                               deadline=date(2026, 12, 31), department_id=operations.id,
                               current_value=32),
+            EnvironmentalGoal(target_metric="Fleet Electrification",
+                              target_value=100, unit="%",
+                              deadline=date(2028, 6, 30), department_id=logistics.id,
+                              current_value=45),
+            EnvironmentalGoal(target_metric="Waste Diverted from Landfill",
+                              target_value=80, unit="%",
+                              deadline=date(2026, 12, 31), department_id=operations.id,
+                              current_value=63),
+            EnvironmentalGoal(target_metric="Paper Reduction",
+                              target_value=40, unit="%",
+                              deadline=date(2026, 12, 31), department_id=finance.id,
+                              current_value=18),
         ])
 
         # ---------------- Policies (RAG corpus) ----------------
@@ -169,7 +216,11 @@ def run():
                           icon="🌳", rule_metric="xp", rule_threshold=500)
         b_champion = Badge(name="Challenge Champion", description="Complete 5 challenges",
                            icon="🏆", rule_metric="completed_challenges", rule_threshold=5)
-        db.add_all([b_first, b_green, b_warrior, b_champion])
+        b_points = Badge(name="Point Collector", description="Accumulate 300 points",
+                         icon="🪙", rule_metric="points_balance", rule_threshold=300)
+        b_legend = Badge(name="Sustainability Legend", description="Reach 1000 XP",
+                         icon="🌟", rule_metric="xp", rule_threshold=1000)
+        db.add_all([b_first, b_green, b_warrior, b_champion, b_points, b_legend])
         db.commit()
 
         # ---------------- Rewards ----------------
@@ -180,6 +231,12 @@ def run():
                    points_required=500, stock=5, status="Active"),
             Reward(name="Plant a Tree in Your Name", description="We plant a tree for you",
                    points_required=50, stock=0, status="Active"),  # out of stock (demo block)
+            Reward(name="Eco Tote Bag", description="Organic cotton tote",
+                   points_required=80, stock=40, status="Active"),
+            Reward(name="Lunch Voucher", description="Sustainable café voucher",
+                   points_required=120, stock=15, status="Active"),
+            Reward(name="Charity Donation (₹500)", description="Donate to a green NGO in your name",
+                   points_required=200, stock=100, status="Active"),
         ])
         db.commit()
 
@@ -198,6 +255,24 @@ def run():
             CarbonTransaction(source_ref="RND-TRAVEL", source_type="Expense",
                               emission_factor_id=ef_flight.id, quantity=8000, co2e=1200,
                               department_id=rnd.id, date=today - timedelta(days=10)),
+            CarbonTransaction(source_ref="MFG-GAS", source_type="Manufacturing",
+                              emission_factor_id=ef_gas.id, quantity=6000, co2e=12120,
+                              department_id=manufacturing.id, date=today - timedelta(days=30)),
+            CarbonTransaction(source_ref="LOG-FLEET1", source_type="Fleet",
+                              emission_factor_id=ef_diesel.id, quantity=9000, co2e=24120,
+                              department_id=logistics.id, date=today - timedelta(days=25)),
+            CarbonTransaction(source_ref="LOG-FLEET2", source_type="Fleet",
+                              emission_factor_id=ef_diesel.id, quantity=3500, co2e=9380,
+                              department_id=logistics.id, date=today - timedelta(days=8)),
+            CarbonTransaction(source_ref="OPS-ELEC", source_type="Expense",
+                              emission_factor_id=ef_elec.id, quantity=9000, co2e=7380,
+                              department_id=operations.id, date=today - timedelta(days=12)),
+            CarbonTransaction(source_ref="FIN-PAPER", source_type="Purchase",
+                              emission_factor_id=ef_paper.id, quantity=1200, co2e=1128,
+                              department_id=finance.id, date=today - timedelta(days=18)),
+            CarbonTransaction(source_ref="HR-ELEC", source_type="Expense",
+                              emission_factor_id=ef_elec.id, quantity=2500, co2e=2050,
+                              department_id=hr.id, date=today - timedelta(days=14)),
         ])
         db.commit()
 
@@ -206,16 +281,40 @@ def run():
                                  description="Plant 500 saplings in the city park.",
                                  points=60, date=today - timedelta(days=3),
                                  department_id=manufacturing.id)
-        db.add(tree_drive)
+        beach_clean = CSRActivity(title="Riverside Clean-up Campaign", category_id=cat_clean.id,
+                                  description="Remove litter along the riverbank.",
+                                  points=50, date=today - timedelta(days=6),
+                                  department_id=operations.id)
+        blood_camp = CSRActivity(title="Company Blood Donation Camp", category_id=cat_blood.id,
+                                 description="Donate blood at the on-site camp.",
+                                 points=40, date=today - timedelta(days=1),
+                                 department_id=hr.id)
+        edu_drive = CSRActivity(title="STEM Workshop for Local School", category_id=cat_edu.id,
+                                description="Teach a hands-on science session to students.",
+                                points=70, date=today + timedelta(days=4),
+                                department_id=rnd.id)
+        db.add_all([tree_drive, beach_clean, blood_camp, edu_drive])
         db.commit()
+
+        # Raj's PENDING CSR (with proof) — approve live for +60 points
         db.add(EmployeeParticipation(user_id=raj.id, activity_id=tree_drive.id,
                                      proof_file="seed_proof_placeholder.jpg",
                                      approval_status="Pending"))
-        # An already-approved one so Social isn't zero
-        db.add(EmployeeParticipation(user_id=priya.id, activity_id=tree_drive.id,
-                                     proof_file="seed_proof_placeholder.jpg",
-                                     approval_status="Approved", points_earned=60,
-                                     completion_date=today - timedelta(days=2)))
+        # A pending one WITHOUT proof — demonstrates the evidence-required block
+        db.add(EmployeeParticipation(user_id=db.query(User).filter_by(email="omar@ecopilot.com").first().id,
+                                     activity_id=beach_clean.id,
+                                     proof_file=None, approval_status="Pending"))
+        # Several already-approved participations so Social scores are realistic
+        approved_csr = [
+            (priya.id, tree_drive.id, 60), (lena.id, beach_clean.id, 50),
+            (db.query(User).filter_by(email="mei@ecopilot.com").first().id, edu_drive.id, 70),
+            (db.query(User).filter_by(email="sara@ecopilot.com").first().id, blood_camp.id, 40),
+            (db.query(User).filter_by(email="nadia@ecopilot.com").first().id, beach_clean.id, 50),
+        ]
+        for uid, aid, pts in approved_csr:
+            db.add(EmployeeParticipation(user_id=uid, activity_id=aid, proof_file="seed_proof_placeholder.jpg",
+                                         approval_status="Approved", points_earned=pts,
+                                         completion_date=today - timedelta(days=2)))
         db.commit()
 
         # ---------------- Challenges + PENDING participation (badge trigger) -------------
@@ -227,24 +326,47 @@ def run():
                               description="Go a full week without single-use plastic.",
                               xp=80, difficulty="Easy", evidence_required=True,
                               deadline=today + timedelta(days=3), status="Under Review")
-        ch_draft = Challenge(title="Carpool Challenge", category_id=cat_energy.id,
+        ch_draft = Challenge(title="Carpool Challenge", category_id=cat_commute.id,
                              description="Organise a carpool for your team.",
                              xp=120, difficulty="Hard", evidence_required=True,
                              status="Draft")
-        db.add_all([ch_active, ch_review, ch_draft])
+        ch_water = Challenge(title="Cut Water Use 20%", category_id=cat_water.id,
+                             description="Reduce your facility water consumption by 20%.",
+                             xp=90, difficulty="Medium", evidence_required=True,
+                             deadline=today + timedelta(days=10), status="Active")
+        ch_done = Challenge(title="Paperless February", category_id=cat_waste.id,
+                            description="A full month with no printed documents.",
+                            xp=110, difficulty="Medium", evidence_required=True,
+                            deadline=today - timedelta(days=5), status="Completed")
+        db.add_all([ch_active, ch_review, ch_draft, ch_water, ch_done])
         db.commit()
 
         # Priya's PENDING challenge submission — approving unlocks 2 badges live
         db.add(ChallengeParticipation(challenge_id=ch_active.id, user_id=priya.id,
                                       progress=100, proof_file="seed_proof_placeholder.jpg",
                                       approval_status="Pending"))
+        # Another pending submission for variety
+        db.add(ChallengeParticipation(challenge_id=ch_water.id,
+                                      user_id=db.query(User).filter_by(email="kenji@ecopilot.com").first().id,
+                                      progress=100, proof_file="seed_proof_placeholder.jpg",
+                                      approval_status="Pending"))
+        # Approved historic submissions
+        for mail, ch in [("lena@ecopilot.com", ch_done), ("mei@ecopilot.com", ch_done),
+                         ("diego@ecopilot.com", ch_water)]:
+            u = db.query(User).filter_by(email=mail).first()
+            db.add(ChallengeParticipation(challenge_id=ch.id, user_id=u.id, progress=100,
+                                          proof_file="seed_proof_placeholder.jpg",
+                                          approval_status="Approved", xp_awarded=ch.xp))
         db.commit()
 
         # ---------------- Governance: audit + compliance issues ----------------
         audit = Audit(scope="Annual ESG Internal Audit", date=today - timedelta(days=30),
                       auditor="Deloitte (external)",
                       findings="Renewable share below target; two open safety issues.")
-        db.add(audit)
+        audit2 = Audit(scope="Supply-Chain Ethics Review", date=today - timedelta(days=12),
+                       auditor="Internal Compliance Team",
+                       findings="One supplier lacks Fair Trade certification.")
+        db.add_all([audit, audit2])
         db.commit()
         db.add_all([
             ComplianceIssue(audit_id=audit.id, severity="High",
@@ -255,6 +377,18 @@ def run():
                             description="Three department heads missed Q1 emission reporting.",
                             owner="R. Kapoor", due_date=today + timedelta(days=20),
                             status="In Progress"),
+            ComplianceIssue(audit_id=audit2.id, severity="Critical",
+                            description="Supplier 'CastCo' missing Fair Trade certification.",
+                            owner="D. Costa", due_date=today - timedelta(days=2),  # OVERDUE
+                            status="Open"),
+            ComplianceIssue(audit_id=audit2.id, severity="Low",
+                            description="Whistle-blower policy page outdated on intranet.",
+                            owner="A. Nair", due_date=today + timedelta(days=15),
+                            status="Open"),
+            ComplianceIssue(audit_id=audit.id, severity="Medium",
+                            description="Waste diversion at 63%, below 80% target.",
+                            owner="S. Mehta", due_date=today + timedelta(days=45),
+                            status="Resolved"),
         ])
         db.commit()
 
