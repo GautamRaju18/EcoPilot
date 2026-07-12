@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
 import { Pill } from './ui'
@@ -58,11 +58,12 @@ function Notifications() {
 export default function Layout({ children }) {
   const { user, logout, isManager } = useAuth()
   const nav = NAV.filter((n) => !n.managerOnly || isManager)
+  const location = useLocation()
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
-      <aside className="w-60 bg-brand-800 text-white flex flex-col fixed inset-y-0">
-        <div className="px-5 py-5 flex items-center gap-2 border-b border-brand-700">
+      <aside className="w-60 bg-gradient-to-b from-brand-800 via-brand-800 to-brand-900 text-white flex flex-col fixed inset-y-0 shadow-2xl z-30">
+        <div className="px-5 py-5 flex items-center gap-2 border-b border-white/10">
           <span className="text-2xl">🌱</span>
           <div>
             <div className="font-extrabold text-lg leading-none">EcoPilot</div>
@@ -75,10 +76,12 @@ export default function Layout({ children }) {
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition ${
-                  isActive ? 'bg-white/15 text-white' : 'text-brand-100 hover:bg-white/10'
+                `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  isActive
+                    ? 'bg-white/15 text-white ring-1 ring-white/20 shadow-[0_4px_16px_-6px_rgba(0,0,0,.4)]'
+                    : 'text-brand-100 hover:bg-white/10 hover:translate-x-0.5'
                 }`}>
-              <span>{n.icon}</span>{n.label}
+              <span className="text-base">{n.icon}</span>{n.label}
             </NavLink>
           ))}
         </nav>
@@ -89,7 +92,7 @@ export default function Layout({ children }) {
 
       {/* Main */}
       <div className="flex-1 ml-60">
-        <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-6 sticky top-0 z-40">
+        <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/50 flex items-center justify-between px-6 sticky top-0 z-40">
           <div className="text-sm text-slate-400">Welcome back, <span className="font-semibold text-slate-700">{user?.full_name}</span></div>
           <div className="flex items-center gap-5">
             <Notifications />
@@ -104,7 +107,7 @@ export default function Layout({ children }) {
             <button className="btn-ghost" onClick={logout}>Logout</button>
           </div>
         </header>
-        <main className="p-6 max-w-7xl mx-auto">{children}</main>
+        <main key={location.pathname} className="p-6 max-w-7xl mx-auto animate-float-in">{children}</main>
       </div>
     </div>
   )

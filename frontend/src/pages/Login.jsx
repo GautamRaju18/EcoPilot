@@ -30,7 +30,7 @@ export default function Login() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Brand panel */}
-      <div className="hidden lg:flex flex-col justify-center bg-brand-800 text-white p-14">
+      <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 text-white p-14">
         <div className="text-5xl mb-4">🌱</div>
         <h1 className="text-4xl font-extrabold mb-3">EcoPilot</h1>
         <p className="text-brand-100 text-lg max-w-md">
@@ -45,8 +45,8 @@ export default function Login() {
       </div>
 
       {/* Form */}
-      <div className="flex items-center justify-center p-8 bg-slate-50">
-        <div className="card w-full max-w-sm">
+      <div className="flex items-center justify-center p-8">
+        <div className="card w-full max-w-sm shadow-2xl">
           <h2 className="text-2xl font-bold mb-1">Sign in</h2>
           <p className="text-sm text-slate-400 mb-6">Access your ESG dashboard</p>
           <form onSubmit={submit} className="space-y-4">

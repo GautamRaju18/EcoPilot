@@ -53,7 +53,8 @@ export function ScoreRing({ value = 0, size = 150, label = 'Overall ESG' }) {
         <circle cx={size / 2} cy={size / 2} r={r} stroke="#e2e8f0" strokeWidth="12" fill="none" />
         <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth="12" fill="none"
           strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
-          style={{ transition: 'stroke-dashoffset .8s ease' }} />
+          style={{ transition: 'stroke-dashoffset .8s ease',
+                   filter: `drop-shadow(0 3px 10px ${color}66)` }} />
       </svg>
       <div className="-mt-[95px] text-center pointer-events-none">
         <div className="text-4xl font-extrabold text-slate-800">{value}</div>
@@ -84,8 +85,8 @@ export function Bar({ label, value, max = 100 }) {
 export function Modal({ open, onClose, title, children }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="card w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card w-full max-w-lg shadow-2xl animate-float-in" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold text-slate-800">{title}</h3>
           <button className="text-slate-400 hover:text-slate-600" onClick={onClose}>✕</button>

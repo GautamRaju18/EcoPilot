@@ -33,8 +33,8 @@ export default function Onboarding({ companyName, onDone, onDismiss }) {
   const downloadTemplate = () => window.open('/api/onboarding/template', '_blank')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-7">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+      <div className="bg-white/90 backdrop-blur-xl border border-white/60 rounded-2xl shadow-2xl w-full max-w-2xl p-7 animate-float-in">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🌱</div>
           <h2 className="text-2xl font-bold text-slate-800">Welcome to EcoPilot{companyName ? `, ${companyName}` : ''}!</h2>

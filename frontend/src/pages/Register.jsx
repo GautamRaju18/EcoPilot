@@ -39,7 +39,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      <div className="hidden lg:flex flex-col justify-center bg-brand-800 text-white p-14">
+      <div className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 text-white p-14">
         <div className="text-5xl mb-4">🌱</div>
         <h1 className="text-4xl font-extrabold mb-3">Join EcoPilot</h1>
         <p className="text-brand-100 text-lg max-w-md">
@@ -48,8 +48,8 @@ export default function Register() {
         </p>
       </div>
 
-      <div className="flex items-center justify-center p-8 bg-slate-50">
-        <div className="card w-full max-w-md">
+      <div className="flex items-center justify-center p-8">
+        <div className="card w-full max-w-md shadow-2xl">
           <h2 className="text-2xl font-bold mb-1">Create your account</h2>
           <p className="text-sm text-slate-400 mb-5">Get started in seconds</p>
 

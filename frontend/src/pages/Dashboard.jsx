@@ -55,7 +55,7 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Overall gauge */}
-        <div className="card flex flex-col items-center justify-center">
+        <div className="card flex flex-col items-center justify-center shadow-[0_10px_44px_-14px_rgba(16,185,129,.4)]">
           <ScoreRing value={o.overall} />
           <div className="text-sm text-slate-500 mt-2">Weighted 40 / 30 / 30</div>
         </div>
@@ -74,7 +74,7 @@ export default function Dashboard() {
         <h3 className="font-semibold text-slate-700 mb-4">Department Scorecards</h3>
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
           {data.departments.map((d) => (
-            <div key={d.department_id} className="rounded-xl border border-slate-100 p-4">
+            <div key={d.department_id} className="glass lift rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold text-slate-700">{d.department}</span>
                 <span className="text-lg font-extrabold text-brand-600">{d.total}</span>
