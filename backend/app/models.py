@@ -340,3 +340,17 @@ class Notification(Base):
     type = Column(String, default="info")   # info / approval / badge / compliance / reminder
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ChatMessage(Base):
+    """Persisted Ask EcoPilot conversation, per user — survives across devices."""
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    role = Column(String, nullable=False)          # "user" | "bot"
+    content = Column(Text, nullable=False)
+    sources = Column(Text, nullable=True)          # JSON-encoded list of source dicts
+    provider = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
