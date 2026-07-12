@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Env / secrets
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# AI artifacts
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
