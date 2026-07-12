@@ -5,6 +5,8 @@ Every provider is wrapped so a missing key / dead server / bad response simply
 falls through to the next. `generate()` never raises; callers inspect
 `.provider == "none"` to build a deterministic template answer instead.
 """
+import concurrent.futures
+import time
 from dataclasses import dataclass
 
 import requests
@@ -12,6 +14,10 @@ import requests
 from ..config import settings
 
 _probe_cache: dict[str, bool] = {}
+_last_provider: str | None = None      # last provider that actually produced text
+_gemini_cooldown_until: float = 0.0    # skip Gemini until this time (rate-limit backoff)
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+GEMINI_TIMEOUT = 8                     # seconds — cap so a slow 429-retry can't hang the demo
 
 
 @dataclass
@@ -20,21 +26,37 @@ class LLMResult:
     provider: str  # "gemini" | "openrouter" | "ollama" | "none"
 
 
+def _gemini_ready() -> bool:
+    return bool(settings.GEMINI_API_KEY) and time.time() >= _gemini_cooldown_until
+
+
 # --------------------------------------------------------------------------- #
+def _gemini_call(prompt: str, system: str | None) -> str | None:
+    from google import genai
+    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    contents = f"{system}\n\n{prompt}" if system else prompt
+    resp = client.models.generate_content(model=settings.GEMINI_MODEL, contents=contents)
+    return (resp.text or "").strip() or None
+
+
 def _try_gemini(prompt: str, system: str | None) -> str | None:
-    if not settings.GEMINI_API_KEY:
+    global _gemini_cooldown_until
+    if not _gemini_ready():
         return None
     try:
-        from google import genai
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        contents = f"{system}\n\n{prompt}" if system else prompt
-        resp = client.models.generate_content(
-            model=settings.GEMINI_MODEL, contents=contents
-        )
-        text = (resp.text or "").strip()
-        return text or None
+        # Hard timeout so Gemini's internal 429 back-off retries can't hang a request.
+        return _executor.submit(_gemini_call, prompt, system).result(timeout=GEMINI_TIMEOUT)
+    except concurrent.futures.TimeoutError:
+        _gemini_cooldown_until = time.time() + 300
+        print("[llm] gemini slow/timed out — backing off 5 min, using next provider")
+        return None
     except Exception as e:  # noqa: BLE001 — provider is best-effort
-        print(f"[llm] gemini failed: {e}")
+        msg = str(e)
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg.upper() or "quota" in msg.lower():
+            _gemini_cooldown_until = time.time() + 300  # rate-limited: back off 5 min
+            print("[llm] gemini rate-limited (429) — backing off 5 min, using next provider")
+        else:
+            print(f"[llm] gemini failed: {e}")
         return None
 
 
@@ -91,6 +113,7 @@ def _try_ollama(prompt: str, system: str | None) -> str | None:
 # --------------------------------------------------------------------------- #
 def generate(prompt: str, system: str | None = None) -> LLMResult:
     """Run the fallback chain. Never raises."""
+    global _last_provider
     for name, fn in (
         ("gemini", _try_gemini),
         ("openrouter", _try_openrouter),
@@ -98,13 +121,19 @@ def generate(prompt: str, system: str | None = None) -> LLMResult:
     ):
         text = fn(prompt, system)
         if text:
+            _last_provider = name
             return LLMResult(text=text, provider=name)
+    _last_provider = "template"
     return LLMResult(text="", provider="none")
 
 
 def active_provider() -> str:
-    """Report which provider would be used (for the UI status badge)."""
-    if settings.GEMINI_API_KEY:
+    """Which provider will actually serve answers (for the UI status badge).
+    Prefers the last one that really produced text; otherwise predicts from the
+    fallback chain, honouring the Gemini rate-limit cooldown."""
+    if _last_provider:
+        return _last_provider
+    if _gemini_ready():
         return "gemini"
     if settings.OPENROUTER_API_KEY:
         return "openrouter"
