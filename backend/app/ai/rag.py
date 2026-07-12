@@ -71,7 +71,8 @@ class _Index:
         return len(self.chunks)
 
     def _build_tfidf(self, corpus: list[str]) -> None:
-        self._vectorizer = TfidfVectorizer(stop_words="english")
+        self._vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2),
+                                           sublinear_tf=True)
         self._matrix = self._vectorizer.fit_transform(corpus)
         self.backend = "tfidf"
 
