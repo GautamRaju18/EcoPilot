@@ -17,11 +17,14 @@ from ..services import scoring
 def gather_scores(state: dict) -> dict:
     db: Session = state["db"]
     dept_id = state.get("department_id")
-    scoring.recompute_all(db)
-    overall = scoring.overall_scores(db)
+    company_id = state.get("company_id")
+    scoring.recompute_all(db, company_id)
+    overall = scoring.overall_scores(db, company_id)
 
     breakdown = []
     q = db.query(DepartmentScore)
+    if company_id is not None:
+        q = q.filter(DepartmentScore.company_id == company_id)
     if dept_id:
         q = q.filter(DepartmentScore.department_id == dept_id)
     for s in q.all():
@@ -42,7 +45,8 @@ def retrieve_context(state: dict) -> dict:
     if index.backend == "none" or not index.chunks:
         index.build(state["db"])
     hits = index.retrieve(
-        "sustainability targets emission reduction governance social responsibility", k=4
+        "sustainability targets emission reduction governance social responsibility", k=4,
+        company_id=state.get("company_id"),
     )
     state["policy_context"] = "\n".join(f"- {c.title}: {c.text[:200]}" for c, _ in hits)
     return state
@@ -123,8 +127,9 @@ def _build_graph():
     return g.compile()
 
 
-def generate_report(db: Session, department_id: int | None = None) -> dict:
-    state = {"db": db, "department_id": department_id}
+def generate_report(db: Session, department_id: int | None = None,
+                    company_id: int | None = None) -> dict:
+    state = {"db": db, "department_id": department_id, "company_id": company_id}
     try:
         graph = _build_graph()
         state = graph.invoke(state)

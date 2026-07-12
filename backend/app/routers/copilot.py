@@ -34,11 +34,11 @@ def reindex(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
 
 @router.post("/ask", response_model=CopilotResponse)
 def ask(payload: CopilotQuery, db: Session = Depends(get_db),
-        _: User = Depends(get_current_user)):
-    return copilot.answer_question(db, payload.question)
+        user: User = Depends(get_current_user)):
+    return copilot.answer_question(db, payload.question, user.company_id)
 
 
 @router.post("/report", response_model=ReportResponse)
 def report(payload: ReportRequest, db: Session = Depends(get_db),
-           _: User = Depends(get_current_user)):
-    return generate_report(db, payload.department_id)
+           user: User = Depends(get_current_user)):
+    return generate_report(db, payload.department_id, user.company_id)

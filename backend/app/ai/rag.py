@@ -23,6 +23,7 @@ from ..models import ESGPolicy, EnvironmentalGoal
 class Chunk:
     title: str
     text: str
+    company_id: int | None = None
 
 
 def _chunk_text(text: str, size: int = 600, overlap: int = 100) -> list[str]:
@@ -51,13 +52,14 @@ class _Index:
         for p in db.query(ESGPolicy).all():
             header = f"{p.title} (v{p.version}, {p.category})"
             for c in _chunk_text(p.document):
-                self.chunks.append(Chunk(title=header, text=c))
+                self.chunks.append(Chunk(title=header, text=c, company_id=p.company_id))
         for g in db.query(EnvironmentalGoal).all():
             dept = g.department.name if g.department else "Org-wide"
             txt = (f"Environmental Goal — {g.target_metric}: target {g.target_value} "
                    f"{g.unit} by {g.deadline} for {dept}. "
                    f"Current value {g.current_value} {g.unit}.")
-            self.chunks.append(Chunk(title=f"Goal: {g.target_metric}", text=txt))
+            self.chunks.append(Chunk(title=f"Goal: {g.target_metric}", text=txt,
+                                     company_id=g.company_id))
 
         if not self.chunks:
             self.backend = "none"
@@ -89,24 +91,34 @@ class _Index:
             return False
 
     # ---------------------------- query -------------------------------- #
-    def retrieve(self, query: str, k: int = 4) -> list[tuple[Chunk, float]]:
+    def retrieve(self, query: str, k: int = 4,
+                 company_id: int | None = None) -> list[tuple[Chunk, float]]:
         if not self.chunks:
             return []
         if self.backend == "faiss+gemini" and self._embeddings is not None:
             q = _gemini_embed([query])
             if q is not None:
                 sims = cosine_similarity(q, self._embeddings)[0]
-                return self._top(sims, k)
+                return self._top(sims, k, company_id)
         # tfidf path (default / fallback)
         if self._vectorizer is None:
             self._build_tfidf([c.text for c in self.chunks])
         qv = self._vectorizer.transform([query])
         sims = cosine_similarity(qv, self._matrix)[0]
-        return self._top(sims, k)
+        return self._top(sims, k, company_id)
 
-    def _top(self, sims, k: int) -> list[tuple[Chunk, float]]:
-        idx = np.argsort(sims)[::-1][:k]
-        return [(self.chunks[i], float(sims[i])) for i in idx if sims[i] > 0.01]
+    def _top(self, sims, k: int, company_id: int | None = None) -> list[tuple[Chunk, float]]:
+        res = []
+        for i in np.argsort(sims)[::-1]:
+            c = self.chunks[i]
+            if company_id is not None and c.company_id != company_id:
+                continue  # tenant isolation — never surface another company's docs
+            if sims[i] <= 0.01:
+                continue
+            res.append((c, float(sims[i])))
+            if len(res) >= k:
+                break
+        return res
 
 
 def _gemini_embed(texts: list[str]):

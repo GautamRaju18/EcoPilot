@@ -24,11 +24,11 @@ def _template_answer(results) -> str:
     return f"Based on **{top.title}**:\n\n{body}{extra}"
 
 
-def answer_question(db: Session, question: str) -> dict:
+def answer_question(db: Session, question: str, company_id: int | None = None) -> dict:
     if index.backend == "none" or not index.chunks:
         index.build(db)
 
-    results = index.retrieve(question, k=4)
+    results = index.retrieve(question, k=4, company_id=company_id)
     context = "\n\n".join(f"[{c.title}]\n{c.text}" for c, _ in results)
 
     prompt = (
