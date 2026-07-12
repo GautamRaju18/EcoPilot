@@ -14,12 +14,26 @@ from .database import Base
 
 
 # --------------------------------------------------------------------------- #
+# Company (tenant) — every other record belongs to exactly one company
+# --------------------------------------------------------------------------- #
+class Company(Base):
+    __tablename__ = "companies"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    code = Column(String, unique=True, index=True)
+    industry = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# --------------------------------------------------------------------------- #
 # Users / Employees
 # --------------------------------------------------------------------------- #
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     full_name = Column(String, nullable=False)
@@ -36,6 +50,7 @@ class User(Base):
 
     department = relationship("Department", back_populates="employees")
     badges = relationship("UserBadge", back_populates="user", cascade="all, delete-orphan")
+    company = relationship("Company")
 
 
 # --------------------------------------------------------------------------- #
@@ -45,6 +60,7 @@ class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     name = Column(String, nullable=False)
     code = Column(String, unique=True, index=True)
     head = Column(String, nullable=True)
@@ -60,6 +76,7 @@ class Category(Base):
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     name = Column(String, nullable=False)
     type = Column(String, nullable=False)   # "CSR Activity" | "Challenge"
     status = Column(String, default="Active")
@@ -69,6 +86,7 @@ class EmissionFactor(Base):
     __tablename__ = "emission_factors"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     activity_type = Column(String, index=True, nullable=False)  # e.g. "electricity_kwh"
     unit = Column(String, default="unit")                        # e.g. "kWh", "liter", "km"
     co2e_per_unit = Column(Float, nullable=False)                # kg CO2e per unit
@@ -79,6 +97,7 @@ class ProductESGProfile(Base):
     __tablename__ = "product_esg_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     product = Column(String, nullable=False)
     carbon_footprint = Column(Float, default=0.0)     # kg CO2e
     recyclable_pct = Column(Float, default=0.0)
@@ -90,6 +109,7 @@ class EnvironmentalGoal(Base):
     __tablename__ = "environmental_goals"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     target_metric = Column(String, nullable=False)    # e.g. "Manufacturing CO2e"
     target_value = Column(Float, nullable=False)
     unit = Column(String, default="tCO2e")
@@ -104,6 +124,7 @@ class ESGPolicy(Base):
     __tablename__ = "esg_policies"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     title = Column(String, nullable=False)
     document = Column(Text, nullable=False)            # full policy text (ingested by RAG)
     category = Column(String, nullable=False)          # Environmental / Social / Governance
@@ -115,6 +136,7 @@ class Badge(Base):
     __tablename__ = "badges"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     icon = Column(String, nullable=True)               # emoji or icon name
@@ -127,6 +149,7 @@ class Reward(Base):
     __tablename__ = "rewards"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
     points_required = Column(Integer, nullable=False)
@@ -141,6 +164,7 @@ class CarbonTransaction(Base):
     __tablename__ = "carbon_transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     source_ref = Column(String, nullable=True)         # e.g. "PO-1042" / "Fleet-7"
     source_type = Column(String, default="Manual")     # Purchase/Manufacturing/Expense/Fleet/Manual
     emission_factor_id = Column(Integer, ForeignKey("emission_factors.id"), nullable=True)
@@ -157,6 +181,7 @@ class CSRActivity(Base):
     __tablename__ = "csr_activities"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     title = Column(String, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     description = Column(Text, nullable=True)
@@ -173,6 +198,7 @@ class EmployeeParticipation(Base):
     __tablename__ = "employee_participations"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     activity_id = Column(Integer, ForeignKey("csr_activities.id"), nullable=False)
     proof_file = Column(String, nullable=True)         # uploaded evidence path
@@ -189,6 +215,7 @@ class Challenge(Base):
     __tablename__ = "challenges"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     title = Column(String, nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     description = Column(Text, nullable=True)
@@ -205,6 +232,7 @@ class ChallengeParticipation(Base):
     __tablename__ = "challenge_participations"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     challenge_id = Column(Integer, ForeignKey("challenges.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     progress = Column(Integer, default=0)              # 0-100
@@ -233,6 +261,7 @@ class Audit(Base):
     __tablename__ = "audits"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     scope = Column(String, nullable=False)
     date = Column(Date, default=date.today)
     auditor = Column(String, nullable=True)
@@ -243,6 +272,7 @@ class ComplianceIssue(Base):
     __tablename__ = "compliance_issues"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     audit_id = Column(Integer, ForeignKey("audits.id"), nullable=True)
     severity = Column(String, default="Medium")        # Low / Medium / High / Critical
     description = Column(Text, nullable=False)
@@ -257,6 +287,7 @@ class DepartmentScore(Base):
     __tablename__ = "department_scores"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     department_id = Column(Integer, ForeignKey("departments.id"), unique=True, nullable=False)
     environmental_score = Column(Float, default=0.0)
     social_score = Column(Float, default=0.0)
@@ -302,6 +333,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id"), index=True, nullable=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # null = broadcast
     title = Column(String, nullable=False)
     message = Column(Text, nullable=True)

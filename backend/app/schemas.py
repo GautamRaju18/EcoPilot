@@ -13,6 +13,14 @@ class ORM(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ------------------------------- Company ----------------------------------- #
+class CompanyOut(ORM):
+    id: int
+    name: str
+    code: Optional[str] = None
+    industry: Optional[str] = None
+
+
 # ------------------------------- Auth -------------------------------------- #
 class Token(BaseModel):
     access_token: str
@@ -28,11 +36,23 @@ class UserCreate(BaseModel):
     department_id: Optional[int] = None
 
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    mode: str = "join"                     # "create" (new company) | "join" (existing)
+    company_name: Optional[str] = None     # required when mode == "create"
+    company_id: Optional[int] = None       # required when mode == "join"
+    industry: Optional[str] = None
+
+
 class UserOut(ORM):
     id: int
     email: str
     full_name: str
     role: str
+    company_id: Optional[int] = None
+    company: Optional[CompanyOut] = None
     department_id: Optional[int] = None
     points_balance: int = 0
     xp: int = 0
