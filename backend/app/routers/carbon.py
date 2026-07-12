@@ -17,13 +17,15 @@ router = APIRouter(prefix="/api/carbon", tags=["carbon"])
 
 
 @router.get("", response_model=list[CarbonTransactionOut])
-def list_transactions(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(CarbonTransaction).order_by(CarbonTransaction.date.desc()).all()
+def list_transactions(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return (db.query(CarbonTransaction)
+            .filter(CarbonTransaction.company_id == user.company_id)
+            .order_by(CarbonTransaction.date.desc()).all())
 
 
 @router.post("", response_model=CarbonTransactionOut)
 def create_transaction(payload: CarbonTransactionCreate, db: Session = Depends(get_db),
-                       _: User = Depends(get_current_user)):
+                       user: User = Depends(get_current_user)):
     co2e = calculate_co2e(
         db,
         emission_factor_id=payload.emission_factor_id,
@@ -31,6 +33,7 @@ def create_transaction(payload: CarbonTransactionCreate, db: Session = Depends(g
         provided_co2e=payload.co2e,
     )
     tx = CarbonTransaction(
+        company_id=user.company_id,
         source_ref=payload.source_ref,
         source_type=payload.source_type,
         emission_factor_id=payload.emission_factor_id,

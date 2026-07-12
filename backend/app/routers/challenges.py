@@ -19,14 +19,14 @@ VALID_STATUSES = {"Draft", "Active", "Under Review", "Completed", "Archived"}
 
 
 @router.get("", response_model=list[ChallengeOut])
-def list_challenges(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Challenge).all()
+def list_challenges(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return db.query(Challenge).filter(Challenge.company_id == user.company_id).all()
 
 
 @router.post("", response_model=ChallengeOut)
 def create_challenge(payload: ChallengeCreate, db: Session = Depends(get_db),
-                     _: User = Depends(require_roles("Manager"))):
-    ch = Challenge(**payload.model_dump())
+                     user: User = Depends(require_roles("Manager"))):
+    ch = Challenge(**payload.model_dump(), company_id=user.company_id)
     db.add(ch)
     db.commit()
     db.refresh(ch)
@@ -51,7 +51,7 @@ def set_status(challenge_id: int, status: str = Body(..., embed=True),
 @router.get("/participations", response_model=list[ChallengeParticipationOut])
 def list_participations(mine: bool = False, db: Session = Depends(get_db),
                         user: User = Depends(get_current_user)):
-    q = db.query(ChallengeParticipation)
+    q = db.query(ChallengeParticipation).filter(ChallengeParticipation.company_id == user.company_id)
     if mine:
         q = q.filter(ChallengeParticipation.user_id == user.id)
     return q.order_by(ChallengeParticipation.created_at.desc()).all()
@@ -65,6 +65,7 @@ def join(challenge_id: int, proof: UploadFile | None = File(default=None),
     if not ch:
         raise HTTPException(status_code=404, detail="Challenge not found")
     part = ChallengeParticipation(
+        company_id=user.company_id,
         challenge_id=challenge_id,
         user_id=user.id,
         progress=progress,

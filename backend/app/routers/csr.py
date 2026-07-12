@@ -20,14 +20,15 @@ router = APIRouter(prefix="/api/csr", tags=["csr"])
 
 # ------------------------------ Activities --------------------------------- #
 @router.get("/activities", response_model=list[CSRActivityOut])
-def list_activities(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(CSRActivity).order_by(CSRActivity.date.desc()).all()
+def list_activities(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return (db.query(CSRActivity).filter(CSRActivity.company_id == user.company_id)
+            .order_by(CSRActivity.date.desc()).all())
 
 
 @router.post("/activities", response_model=CSRActivityOut)
 def create_activity(payload: CSRActivityCreate, db: Session = Depends(get_db),
-                    _: User = Depends(require_roles("Manager"))):
-    activity = CSRActivity(**payload.model_dump())
+                    user: User = Depends(require_roles("Manager"))):
+    activity = CSRActivity(**payload.model_dump(), company_id=user.company_id)
     if not activity.date:
         activity.date = date.today()
     db.add(activity)
@@ -40,7 +41,7 @@ def create_activity(payload: CSRActivityCreate, db: Session = Depends(get_db),
 @router.get("/participations", response_model=list[ParticipationOut])
 def list_participations(mine: bool = False, db: Session = Depends(get_db),
                         user: User = Depends(get_current_user)):
-    q = db.query(EmployeeParticipation)
+    q = db.query(EmployeeParticipation).filter(EmployeeParticipation.company_id == user.company_id)
     if mine:
         q = q.filter(EmployeeParticipation.user_id == user.id)
     return q.order_by(EmployeeParticipation.created_at.desc()).all()
@@ -53,6 +54,7 @@ def participate(activity_id: int, proof: UploadFile | None = File(default=None),
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
     part = EmployeeParticipation(
+        company_id=user.company_id,
         user_id=user.id,
         activity_id=activity_id,
         proof_file=save_upload(proof) if proof else None,

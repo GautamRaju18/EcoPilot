@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api", tags=["gamification"])
 
 
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
-def leaderboard(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return gamification.leaderboard(db)
+def leaderboard(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return gamification.leaderboard(db, user.company_id)
 
 
 @router.get("/my-badges", response_model=list[UserBadgeOut])

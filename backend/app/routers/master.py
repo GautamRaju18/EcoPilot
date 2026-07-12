@@ -16,23 +16,34 @@ router = APIRouter(prefix="/api", tags=["master-data"])
 def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[BaseModel],
               path: str, name: str):
     manager = require_roles("Manager")  # writes: Manager/Admin only
+    has_company = hasattr(model, "company_id")
 
-    @router.get(f"/{path}", response_model=list[out_schema], name=f"list_{name}")
-    def list_items(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
-        return db.query(model).all()
+    def _scoped(db, user):
+        q = db.query(model)
+        return q.filter(model.company_id == user.company_id) if has_company else q
 
-    @router.get(f"/{path}/{{item_id}}", response_model=out_schema, name=f"get_{name}")
-    def get_item(item_id: int, db: Session = Depends(get_db),
-                 _: models.User = Depends(get_current_user)):
+    def _owned(db, user, item_id):
         obj = db.query(model).get(item_id)
-        if not obj:
+        if not obj or (has_company and obj.company_id != user.company_id):
             raise HTTPException(status_code=404, detail=f"{name} not found")
         return obj
 
+    @router.get(f"/{path}", response_model=list[out_schema], name=f"list_{name}")
+    def list_items(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+        return _scoped(db, user).all()
+
+    @router.get(f"/{path}/{{item_id}}", response_model=out_schema, name=f"get_{name}")
+    def get_item(item_id: int, db: Session = Depends(get_db),
+                 user: models.User = Depends(get_current_user)):
+        return _owned(db, user, item_id)
+
     @router.post(f"/{path}", response_model=out_schema, name=f"create_{name}")
     def create_item(payload: create_schema, db: Session = Depends(get_db),
-                    _: models.User = Depends(manager)):
-        obj = model(**payload.model_dump())
+                    user: models.User = Depends(manager)):
+        data = payload.model_dump()
+        if has_company:
+            data["company_id"] = user.company_id
+        obj = model(**data)
         db.add(obj)
         db.commit()
         db.refresh(obj)
@@ -40,10 +51,8 @@ def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[Base
 
     @router.put(f"/{path}/{{item_id}}", response_model=out_schema, name=f"update_{name}")
     def update_item(item_id: int, payload: create_schema, db: Session = Depends(get_db),
-                    _: models.User = Depends(manager)):
-        obj = db.query(model).get(item_id)
-        if not obj:
-            raise HTTPException(status_code=404, detail=f"{name} not found")
+                    user: models.User = Depends(manager)):
+        obj = _owned(db, user, item_id)
         for k, v in payload.model_dump(exclude_unset=True).items():
             setattr(obj, k, v)
         db.commit()
@@ -52,10 +61,8 @@ def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[Base
 
     @router.delete(f"/{path}/{{item_id}}", name=f"delete_{name}")
     def delete_item(item_id: int, db: Session = Depends(get_db),
-                    _: models.User = Depends(manager)):
-        obj = db.query(model).get(item_id)
-        if not obj:
-            raise HTTPException(status_code=404, detail=f"{name} not found")
+                    user: models.User = Depends(manager)):
+        obj = _owned(db, user, item_id)
         db.delete(obj)
         db.commit()
         return {"ok": True}
@@ -79,7 +86,7 @@ _register(models.Reward, schemas.RewardCreate, schemas.RewardOut,
           "rewards", "reward")
 
 
-# Users list (for pickers / admin) — read-only here
+# Users list (for pickers / admin) — scoped to the caller's company
 @router.get("/users", response_model=list[schemas.UserOut], name="list_users")
-def list_users(db: Session = Depends(get_db), _: models.User = Depends(get_current_user)):
-    return db.query(models.User).all()
+def list_users(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
+    return db.query(models.User).filter(models.User.company_id == user.company_id).all()

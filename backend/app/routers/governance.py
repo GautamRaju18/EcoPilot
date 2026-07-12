@@ -19,14 +19,15 @@ router = APIRouter(prefix="/api/governance", tags=["governance"])
 
 # ------------------------------- Audits ------------------------------------ #
 @router.get("/audits", response_model=list[AuditOut])
-def list_audits(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Audit).order_by(Audit.date.desc()).all()
+def list_audits(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return (db.query(Audit).filter(Audit.company_id == user.company_id)
+            .order_by(Audit.date.desc()).all())
 
 
 @router.post("/audits", response_model=AuditOut)
 def create_audit(payload: AuditCreate, db: Session = Depends(get_db),
-                 _: User = Depends(require_roles("Manager"))):
-    audit = Audit(**payload.model_dump())
+                 user: User = Depends(require_roles("Manager"))):
+    audit = Audit(**payload.model_dump(), company_id=user.company_id)
     if not audit.date:
         audit.date = date.today()
     db.add(audit)
@@ -44,23 +45,24 @@ def _to_out(issue: ComplianceIssue) -> ComplianceIssueOut:
 
 
 @router.get("/issues", response_model=list[ComplianceIssueOut])
-def list_issues(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return [_to_out(i) for i in db.query(ComplianceIssue).all()]
+def list_issues(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return [_to_out(i) for i in
+            db.query(ComplianceIssue).filter(ComplianceIssue.company_id == user.company_id).all()]
 
 
 @router.post("/issues", response_model=ComplianceIssueOut)
 def create_issue(payload: ComplianceIssueCreate, db: Session = Depends(get_db),
-                 _: User = Depends(require_roles("Manager"))):
+                 user: User = Depends(require_roles("Manager"))):
     # Rule 7 — Owner + Due Date are required (enforced by the schema types too)
     if not payload.owner or not payload.due_date:
         raise HTTPException(status_code=400, detail="Owner and Due Date are required")
-    issue = ComplianceIssue(**payload.model_dump())
+    issue = ComplianceIssue(**payload.model_dump(), company_id=user.company_id)
     db.add(issue)
     db.commit()
     db.refresh(issue)
     notify(db, title=f"New compliance issue: {issue.severity}",
            message=f"{issue.description[:80]} — owner {issue.owner}, due {issue.due_date}",
-           type="compliance")
+           type="compliance", company_id=user.company_id)
     return _to_out(issue)
 
 

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..models import (
-    CarbonTransaction, ChallengeParticipation, ComplianceIssue, CSRActivity,
+    CarbonTransaction, ChallengeParticipation, ComplianceIssue,
     Department, DepartmentScore, EmployeeParticipation, PolicyAcknowledgement, User,
 )
 
@@ -56,7 +56,11 @@ def compute_social(db: Session, department_id: int) -> float:
 
 def compute_governance(db: Session, department_id: int) -> float:
     today = date.today()
-    open_issues = db.query(ComplianceIssue).filter(ComplianceIssue.status != "Resolved").all()
+    dept = db.query(Department).get(department_id)
+    q = db.query(ComplianceIssue).filter(ComplianceIssue.status != "Resolved")
+    if dept and dept.company_id:  # scope compliance to this company only
+        q = q.filter(ComplianceIssue.company_id == dept.company_id)
+    open_issues = q.all()
     open_count = len(open_issues)
     overdue = sum(1 for i in open_issues if i.due_date and i.due_date < today)
 
@@ -89,6 +93,8 @@ def recompute_department_score(db: Session, department_id: int) -> DepartmentSco
     if not score:
         score = DepartmentScore(department_id=department_id)
         db.add(score)
+    dept = db.query(Department).get(department_id)
+    score.company_id = dept.company_id if dept else None
     score.environmental_score = env
     score.social_score = soc
     score.governance_score = gov
@@ -98,13 +104,19 @@ def recompute_department_score(db: Session, department_id: int) -> DepartmentSco
     return score
 
 
-def recompute_all(db: Session) -> list[DepartmentScore]:
-    return [recompute_department_score(db, d.id) for d in db.query(Department).all()]
+def recompute_all(db: Session, company_id: int | None = None) -> list[DepartmentScore]:
+    q = db.query(Department)
+    if company_id is not None:
+        q = q.filter(Department.company_id == company_id)
+    return [recompute_department_score(db, d.id) for d in q.all()]
 
 
-def overall_scores(db: Session) -> dict:
-    """Org-wide averages across departments (used by dashboard + report)."""
-    scores = db.query(DepartmentScore).all()
+def overall_scores(db: Session, company_id: int | None = None) -> dict:
+    """Averages across a company's departments (used by dashboard + report)."""
+    q = db.query(DepartmentScore)
+    if company_id is not None:
+        q = q.filter(DepartmentScore.company_id == company_id)
+    scores = q.all()
     if not scores:
         return {"environmental": 0, "social": 0, "governance": 0, "overall": 0}
     n = len(scores)

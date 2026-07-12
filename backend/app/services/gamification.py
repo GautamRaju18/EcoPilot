@@ -21,7 +21,10 @@ def check_and_award_badges(db: Session, user: User) -> list[Badge]:
     earned_ids = {ub.badge_id for ub in
                   db.query(UserBadge).filter(UserBadge.user_id == user.id).all()}
     newly: list[Badge] = []
-    for badge in db.query(Badge).all():
+    badge_q = db.query(Badge)
+    if user.company_id:  # only this company's badges apply
+        badge_q = badge_q.filter(Badge.company_id == user.company_id)
+    for badge in badge_q.all():
         if badge.id in earned_ids:
             continue
         if _metric_value(user, badge.rule_metric) >= badge.rule_threshold:
@@ -37,7 +40,7 @@ def check_and_award_badges(db: Session, user: User) -> list[Badge]:
 def redeem_reward(db: Session, user: User, reward_id: int) -> Redemption:
     """Deduct points + decrement stock (Rule 5). Blocks on stock/balance."""
     reward = db.query(Reward).get(reward_id)
-    if not reward or reward.status != "Active":
+    if not reward or reward.status != "Active" or reward.company_id != user.company_id:
         raise HTTPException(status_code=404, detail="Reward not available")
     if reward.stock <= 0:
         raise HTTPException(status_code=400, detail="Reward out of stock")
@@ -56,8 +59,11 @@ def redeem_reward(db: Session, user: User, reward_id: int) -> Redemption:
     return redemption
 
 
-def leaderboard(db: Session) -> list[dict]:
-    users = db.query(User).order_by(User.xp.desc()).all()
+def leaderboard(db: Session, company_id: int | None = None) -> list[dict]:
+    q = db.query(User)
+    if company_id is not None:
+        q = q.filter(User.company_id == company_id)
+    users = q.order_by(User.xp.desc()).all()
     rows = []
     for u in users:
         badge_count = db.query(UserBadge).filter(UserBadge.user_id == u.id).count()
