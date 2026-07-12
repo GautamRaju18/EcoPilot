@@ -25,7 +25,15 @@ export function AuthProvider({ children }) {
     setUser(data.user)
     return data.user
   }
-  const logout = () => { clearToken(); setUser(null); location.href = '/login' }
+  const logout = () => {
+    clearToken(); setUser(null)
+    try {
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith('ecopilot_chat_'))
+        .forEach((k) => sessionStorage.removeItem(k))
+    } catch { /* ignore */ }
+    location.href = '/login'
+  }
 
   const isManager = user && (user.role === 'Manager' || user.role === 'Admin')
 

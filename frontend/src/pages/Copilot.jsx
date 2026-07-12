@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { useAuth } from '../auth'
 import Markdown from '../components/Markdown'
 
 const SUGGESTED = [
@@ -9,10 +10,19 @@ const SUGGESTED = [
   'How is the overall ESG score calculated?',
 ]
 
+const GREETING = { role: 'bot', text: "Hi! I'm **EcoPilot**. Ask me anything about your organisation's ESG policies and goals — my answers are grounded in your ingested documents and cite their sources." }
+
 export default function Copilot() {
-  const [msgs, setMsgs] = useState([
-    { role: 'bot', text: "Hi! I'm **EcoPilot**. Ask me anything about your organisation's ESG policies and goals — my answers are grounded in your ingested documents and cite their sources." },
-  ])
+  const { user } = useAuth()
+  // Persist the conversation per-company for the whole session so it survives
+  // navigating between sections and page reloads (cleared on logout / tab close).
+  const chatKey = `ecopilot_chat_${user?.company_id ?? 'anon'}`
+  const [msgs, setMsgs] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(chatKey)
+      return saved ? JSON.parse(saved) : [GREETING]
+    } catch { return [GREETING] }
+  })
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null)
@@ -20,6 +30,12 @@ export default function Copilot() {
 
   useEffect(() => { api.get('/ai/status').then(setStatus).catch(() => {}) }, [])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, busy])
+  // Save on every change
+  useEffect(() => {
+    try { sessionStorage.setItem(chatKey, JSON.stringify(msgs)) } catch { /* quota */ }
+  }, [msgs, chatKey])
+
+  const clearChat = () => { setMsgs([GREETING]); sessionStorage.removeItem(chatKey) }
 
   const ask = async (question) => {
     const text = question || q
@@ -42,12 +58,18 @@ export default function Copilot() {
           <h1 className="text-2xl font-bold text-slate-800">🤖 Ask EcoPilot</h1>
           <p className="text-sm text-slate-400">RAG-grounded answers from your ESG policies &amp; goals.</p>
         </div>
-        {status && (
-          <div className="text-xs text-slate-400 text-right">
-            <div>provider: <b className="text-slate-600">{status.provider}</b></div>
-            <div>{status.indexed_chunks} chunks · {status.retrieval_backend}</div>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {status && (
+            <div className="text-xs text-slate-400 text-right">
+              <div>provider: <b className="text-slate-600">{status.provider}</b></div>
+              <div>{status.indexed_chunks} chunks · {status.retrieval_backend}</div>
+            </div>
+          )}
+          {msgs.length > 1 && (
+            <button onClick={clearChat} title="Clear conversation"
+              className="btn-ghost py-1.5 px-3 text-xs">Clear</button>
+          )}
+        </div>
       </div>
 
       {/* Conversation */}
