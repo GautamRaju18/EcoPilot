@@ -3,6 +3,8 @@ import { useAuth } from './auth'
 import Layout from './components/Layout'
 import { Spinner } from './components/ui'
 import Login from './pages/Login'
+import Register from './pages/Register'
+import Companies from './pages/Companies'
 import Dashboard from './pages/Dashboard'
 import Carbon from './pages/Carbon'
 import CSR from './pages/CSR'
@@ -23,7 +25,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/" element={<Protected><Dashboard /></Protected>} />
+      <Route path="/companies" element={<Protected><Companies /></Protected>} />
       <Route path="/carbon" element={<Protected><Carbon /></Protected>} />
       <Route path="/csr" element={<Protected><CSR /></Protected>} />
       <Route path="/challenges" element={<Protected><Challenges /></Protected>} />

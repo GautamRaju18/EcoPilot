@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 
 const DEMO = [
-  { label: 'Admin', email: 'admin@ecopilot.com', pw: 'admin123' },
-  { label: 'Manager', email: 'manager@ecopilot.com', pw: 'manager123' },
-  { label: 'Employee (Priya)', email: 'priya@ecopilot.com', pw: 'priya123' },
+  { label: 'GreenCore Mgr', email: 'manager@ecopilot.com', pw: 'manager123' },
+  { label: 'GreenCore (Priya)', email: 'priya@ecopilot.com', pw: 'priya123' },
+  { label: 'TerraLogistics', email: 'admin@terralogistics.com', pw: 'admin123' },
 ]
 
 export default function Login() {
@@ -61,6 +61,10 @@ export default function Login() {
             {err && <div className="text-sm text-rose-600">{err}</div>}
             <button className="btn-primary w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
           </form>
+
+          <p className="text-sm text-slate-500 mt-4 text-center">
+            New here? <Link to="/register" className="text-brand-600 font-semibold">Create an account</Link>
+          </p>
 
           <div className="mt-6">
             <div className="text-xs font-semibold text-slate-400 mb-2">Quick demo login</div>

@@ -12,6 +12,7 @@ const NAV = [
   { to: '/governance', label: 'Governance', icon: '⚖️' },
   { to: '/copilot', label: 'Ask EcoPilot', icon: '🤖' },
   { to: '/report', label: 'ESG Report', icon: '📄' },
+  { to: '/companies', label: 'Company Ranking', icon: '🏢' },
   { to: '/admin', label: 'Data Management', icon: '🗂️', managerOnly: true },
 ]
 
@@ -65,7 +66,9 @@ export default function Layout({ children }) {
           <span className="text-2xl">🌱</span>
           <div>
             <div className="font-extrabold text-lg leading-none">EcoPilot</div>
-            <div className="text-[10px] text-brand-200 uppercase tracking-wider">ESG Platform</div>
+            <div className="text-[10px] text-brand-200 uppercase tracking-wider truncate max-w-[140px]">
+              {user?.company?.name || 'ESG Platform'}
+            </div>
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
