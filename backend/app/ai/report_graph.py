@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from . import llm
-from .rag import index
+from .rag import get_or_build_index
 from ..models import Department, DepartmentScore
 from ..services import scoring
 
@@ -42,9 +42,8 @@ def gather_scores(state: dict) -> dict:
 
 
 def retrieve_context(state: dict) -> dict:
-    if index.backend == "none" or not index.chunks:
-        index.build(state["db"])
-    hits = index.retrieve(
+    idx = get_or_build_index(state["db"], state.get("company_id"))
+    hits = idx.retrieve(
         "sustainability targets emission reduction governance social responsibility", k=4,
         company_id=state.get("company_id"),
     )

@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..ai.rag import invalidate_company
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 
@@ -47,6 +48,8 @@ def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[Base
         db.add(obj)
         db.commit()
         db.refresh(obj)
+        # Invalidate the RAG index so the copilot picks up the new data
+        invalidate_company(user.company_id)
         return obj
 
     @router.put(f"/{path}/{{item_id}}", response_model=out_schema, name=f"update_{name}")
@@ -57,6 +60,8 @@ def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[Base
             setattr(obj, k, v)
         db.commit()
         db.refresh(obj)
+        # Invalidate the RAG index so the copilot sees the updated data
+        invalidate_company(user.company_id)
         return obj
 
     @router.delete(f"/{path}/{{item_id}}", name=f"delete_{name}")
@@ -65,6 +70,8 @@ def _register(model: Type, create_schema: Type[BaseModel], out_schema: Type[Base
         obj = _owned(db, user, item_id)
         db.delete(obj)
         db.commit()
+        # Invalidate the RAG index so the copilot no longer references deleted data
+        invalidate_company(user.company_id)
         return {"ok": True}
 
 
@@ -90,3 +97,4 @@ _register(models.Reward, schemas.RewardCreate, schemas.RewardOut,
 @router.get("/users", response_model=list[schemas.UserOut], name="list_users")
 def list_users(db: Session = Depends(get_db), user: models.User = Depends(get_current_user)):
     return db.query(models.User).filter(models.User.company_id == user.company_id).all()
+

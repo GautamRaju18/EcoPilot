@@ -32,7 +32,7 @@ TENANT_MODELS = [
 ]
 from .auth import hash_password
 from .services import gamification, scoring
-from .ai.rag import index
+from .ai.rag import invalidate_company
 
 POLICIES = [
     dict(
@@ -579,13 +579,13 @@ def run():
             gamification.check_and_award_badges(db, u)
         scoring.recompute_all(db)
 
-        # ---------------- Build RAG index ----------------
-        n = index.build(db)
+        # ---------------- Invalidate RAG index (will rebuild lazily) --------
+        invalidate_company()  # clear all
 
         print("\n=== EcoPilot seed complete ===")
         print(f"Companies: {db.query(Company).count()}  "
               f"Departments: {db.query(Department).count()}  Users: {db.query(User).count()}")
-        print(f"RAG indexed chunks: {n} (backend: {index.backend})")
+        print("RAG indexes cleared — will rebuild per-company on first copilot query.")
         print("\nCross-company ESG ranking:")
         for c in db.query(Company).all():
             s = scoring.overall_scores(db, c.id)

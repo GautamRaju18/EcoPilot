@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from ..ai import copilot, llm
-from ..ai.rag import index
+from ..ai.rag import get_or_build_index, invalidate_company
 from ..ai.report_graph import generate_report
 from .chat import save_message
 from ..database import get_db
@@ -17,20 +17,20 @@ router = APIRouter(prefix="/api/ai", tags=["ai"])
 
 
 @router.get("/status")
-def ai_status(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    if index.backend == "none" or not index.chunks:
-        index.build(db)
+def ai_status(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    idx = get_or_build_index(db, user.company_id)
     return {
         "provider": llm.active_provider(),
-        "retrieval_backend": index.backend,
-        "indexed_chunks": len(index.chunks),
+        "retrieval_backend": idx.backend,
+        "indexed_chunks": len(idx.chunks),
     }
 
 
 @router.post("/reindex")
-def reindex(db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    n = index.build(db)
-    return {"ok": True, "indexed_chunks": n, "backend": index.backend}
+def reindex(db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    invalidate_company(user.company_id)
+    idx = get_or_build_index(db, user.company_id)
+    return {"ok": True, "indexed_chunks": len(idx.chunks), "backend": idx.backend}
 
 
 @router.post("/ask", response_model=CopilotResponse)
@@ -48,3 +48,4 @@ def ask(payload: CopilotQuery, db: Session = Depends(get_db),
 def report(payload: ReportRequest, db: Session = Depends(get_db),
            user: User = Depends(get_current_user)):
     return generate_report(db, payload.department_id, user.company_id)
+

@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
-from ..ai.rag import index
+from ..ai.rag import invalidate_company
 from ..ai.starter_docs import STARTER_GOALS, STARTER_POLICIES
 from ..auth import hash_password
 from ..models import (
@@ -134,7 +134,7 @@ def populate_company(db: Session, company_id: int) -> dict:
     for u in db.query(User).filter(User.company_id == cid).all():
         gamification.check_and_award_badges(db, u)
     scoring.recompute_all(db, cid)
-    index.build(db)
+    invalidate_company(cid)
 
     return {
         "departments": len(depts),

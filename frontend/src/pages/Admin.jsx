@@ -8,7 +8,7 @@ const reindex = () => api.post('/ai/reindex').catch(() => {})
 // Per-entity config: columns (table) + fields (form).
 const CONFIGS = {
   Departments: {
-    endpoint: '/departments',
+    endpoint: '/departments', onSaved: reindex,
     columns: [{ key: 'name', label: 'Name' }, { key: 'code', label: 'Code' },
               { key: 'head', label: 'Head' }, { key: 'employee_count', label: 'Employees' },
               { key: 'status', label: 'Status' }],
@@ -20,14 +20,14 @@ const CONFIGS = {
              { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }],
   },
   Categories: {
-    endpoint: '/categories',
+    endpoint: '/categories', onSaved: reindex,
     columns: [{ key: 'name', label: 'Name' }, { key: 'type', label: 'Type' }, { key: 'status', label: 'Status' }],
     fields: [{ key: 'name', label: 'Name', type: 'text', required: true },
              { key: 'type', label: 'Type', type: 'select', options: ['CSR Activity', 'Challenge'], required: true },
              { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }],
   },
   'Emission Factors': {
-    endpoint: '/emission-factors',
+    endpoint: '/emission-factors', onSaved: reindex,
     columns: [{ key: 'activity_type', label: 'Activity' }, { key: 'unit', label: 'Unit' },
               { key: 'co2e_per_unit', label: 'kg CO₂e/unit' }, { key: 'description', label: 'Description' }],
     fields: [{ key: 'activity_type', label: 'Activity type', type: 'text', required: true },
@@ -85,7 +85,7 @@ const CONFIGS = {
              { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }],
   },
   Challenges: {
-    endpoint: '/challenges', canEdit: false, canDelete: false,
+    endpoint: '/challenges', onSaved: reindex, canEdit: false, canDelete: false,
     columns: [{ key: 'title', label: 'Title' }, { key: 'xp', label: 'XP' },
               { key: 'difficulty', label: 'Difficulty' }, { key: 'status', label: 'Status' }],
     fields: [{ key: 'title', label: 'Title', type: 'text', required: true },

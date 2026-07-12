@@ -4,15 +4,17 @@ import re
 from sqlalchemy.orm import Session
 
 from . import llm
-from .rag import index
+from .rag import get_or_build_index
 
 SYSTEM = (
     "You are EcoPilot, an ESG assistant. Answer the user's question using ONLY "
-    "the provided context from the organisation's ESG policies and environmental "
-    "goals. Be concise and well-structured: lead with a direct answer, then add "
-    "supporting detail. Use Markdown (bold key numbers, bullet points where useful). "
-    "Cite the policy/goal titles you used. If the answer is not in the context, say "
-    "you don't have that information in the ingested documents."
+    "the provided context from the organisation's ESG policies, environmental "
+    "goals, departments, emission factors, carbon transactions, CSR activities, "
+    "challenges, and compliance records. Be concise and well-structured: lead with "
+    "a direct answer, then add supporting detail. Use Markdown (bold key numbers, "
+    "bullet points where useful). Cite the source titles you used. If the answer "
+    "is not in the context, say you don't have that information in the ingested "
+    "documents."
 )
 
 _STOP = {"the", "a", "an", "is", "are", "our", "we", "of", "to", "for", "and", "in",
@@ -62,10 +64,9 @@ def _template_answer(question: str, results) -> str:
 
 
 def answer_question(db: Session, question: str, company_id: int | None = None) -> dict:
-    if index.backend == "none" or not index.chunks:
-        index.build(db)
+    idx = get_or_build_index(db, company_id)
 
-    results = index.retrieve(question, k=4, company_id=company_id)
+    results = idx.retrieve(question, k=4, company_id=company_id)
     context = "\n\n".join(f"[{c.title}]\n{c.text}" for c, _ in results)
 
     prompt = (
@@ -84,3 +85,4 @@ def answer_question(db: Session, question: str, company_id: int | None = None) -
         for c, score in results
     ]
     return {"answer": answer, "sources": sources, "provider": provider}
+
