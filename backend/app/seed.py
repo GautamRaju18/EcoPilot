@@ -19,10 +19,17 @@ from datetime import date, timedelta
 from .database import Base, SessionLocal, engine
 from .models import (
     Audit, Badge, CarbonTransaction, Category, Challenge, ChallengeParticipation,
-    ComplianceIssue, CSRActivity, Department, EmissionFactor, EmployeeParticipation,
-    EnvironmentalGoal, ESGPolicy, PolicyAcknowledgement, ProductESGProfile, Reward,
-    User,
+    Company, ComplianceIssue, CSRActivity, Department, EmissionFactor,
+    EmployeeParticipation, EnvironmentalGoal, ESGPolicy, PolicyAcknowledgement,
+    ProductESGProfile, Reward, User,
 )
+
+# Models that carry a company_id (used to tag the primary demo company in bulk)
+TENANT_MODELS = [
+    Department, Category, EmissionFactor, ProductESGProfile, EnvironmentalGoal,
+    ESGPolicy, Badge, Reward, CarbonTransaction, CSRActivity, EmployeeParticipation,
+    Challenge, ChallengeParticipation, Audit, ComplianceIssue, User,
+]
 from .auth import hash_password
 from .services import gamification, scoring
 from .ai.rag import index
@@ -78,11 +85,118 @@ POLICIES = [
 ]
 
 
+def add_company(db, *, name, code, industry, admin_email, admin_pw,
+                dept_specs, employees, carbon_specs, policies, goals,
+                overdue_issues=1, approved_csr=2):
+    """Build a compact but complete second/third tenant so the cross-company
+    ESG ranking and per-company isolation are demonstrable."""
+    company = Company(name=name, code=code, industry=industry)
+    db.add(company)
+    db.commit()
+    db.refresh(company)
+    cid = company.id
+    today = date.today()
+
+    depts = {}
+    for dname, dcode, head, count in dept_specs:
+        d = Department(company_id=cid, name=dname, code=dcode, head=head,
+                       employee_count=count, status="Active")
+        db.add(d)
+        db.flush()
+        depts[dcode] = d
+
+    admin = User(company_id=cid, email=admin_email, hashed_password=hash_password(admin_pw),
+                 full_name=f"{name.split()[0]} Admin", role="Admin",
+                 department_id=list(depts.values())[0].id, xp=280, points_balance=140,
+                 completed_challenges=2)
+    db.add(admin)
+    users = [admin]
+    for fname, mail, dcode, xp, pts, done in employees:
+        u = User(company_id=cid, email=mail, hashed_password=hash_password("password123"),
+                 full_name=fname, role="Employee", department_id=depts[dcode].id,
+                 xp=xp, points_balance=pts, completed_challenges=done)
+        db.add(u)
+        users.append(u)
+    db.commit()
+
+    cat_csr = Category(company_id=cid, name="Community Drive", type="CSR Activity")
+    cat_ch = Category(company_id=cid, name="Energy Saving", type="Challenge")
+    db.add_all([cat_csr, cat_ch])
+
+    factors = {}
+    for at, unit, val in [("electricity_kwh", "kWh", 0.82), ("diesel_liter", "liter", 2.68)]:
+        f = EmissionFactor(company_id=cid, activity_type=at, unit=unit, co2e_per_unit=val)
+        db.add(f)
+        db.flush()
+        factors[at] = f
+
+    for p in policies:
+        db.add(ESGPolicy(company_id=cid, **p))
+    for g in goals:
+        db.add(EnvironmentalGoal(company_id=cid, department_id=list(depts.values())[0].id, **g))
+
+    for bname, icon, metric, thr in [
+        ("First Steps", "🌱", "xp", 50), ("Green Contributor", "🍃", "xp", 200),
+        ("Eco Warrior", "🌳", "xp", 500), ("Challenge Champion", "🏆", "completed_challenges", 5),
+    ]:
+        db.add(Badge(company_id=cid, name=bname, icon=icon, rule_metric=metric, rule_threshold=thr))
+
+    db.add_all([
+        Reward(company_id=cid, name="Reusable Bottle", points_required=100, stock=20, status="Active"),
+        Reward(company_id=cid, name="Extra Day Off", points_required=500, stock=3, status="Active"),
+    ])
+
+    for ref, at, qty, co2e, dcode, days in carbon_specs:
+        db.add(CarbonTransaction(company_id=cid, source_ref=ref, source_type="Manual",
+                                 emission_factor_id=factors[at].id, quantity=qty, co2e=co2e,
+                                 department_id=depts[dcode].id, date=today - timedelta(days=days)))
+    db.commit()
+
+    # A CSR activity with some approved participations (lifts Social)
+    act = CSRActivity(company_id=cid, title="Neighbourhood Clean-up", category_id=cat_csr.id,
+                      description="Local clean-up drive.", points=50,
+                      date=today - timedelta(days=4), department_id=list(depts.values())[0].id)
+    db.add(act)
+    db.flush()
+    for u in users[1:1 + approved_csr]:
+        db.add(EmployeeParticipation(company_id=cid, user_id=u.id, activity_id=act.id,
+                                     proof_file="seed_proof_placeholder.jpg",
+                                     approval_status="Approved", points_earned=50,
+                                     completion_date=today - timedelta(days=2)))
+
+    ch = Challenge(company_id=cid, title="Cut Energy 10%", category_id=cat_ch.id,
+                   description="Reduce energy use.", xp=100, difficulty="Medium",
+                   evidence_required=True, deadline=today + timedelta(days=7), status="Active")
+    db.add(ch)
+    db.flush()
+    db.add(ChallengeParticipation(company_id=cid, challenge_id=ch.id, user_id=users[1].id,
+                                  progress=100, proof_file="seed_proof_placeholder.jpg",
+                                  approval_status="Pending"))
+
+    audit = Audit(company_id=cid, scope="Internal ESG Audit", date=today - timedelta(days=20),
+                  auditor="Internal team", findings="Routine review.")
+    db.add(audit)
+    db.flush()
+    for i in range(overdue_issues):
+        db.add(ComplianceIssue(company_id=cid, audit_id=audit.id, severity="High",
+                               description=f"Open finding #{i + 1} pending resolution.",
+                               owner=list(depts.values())[0].head or "Owner",
+                               due_date=today - timedelta(days=3), status="Open"))
+    db.commit()
+    return company
+
+
 def run():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        # ---------------- Primary company (GreenCore) ----------------
+        greencore = Company(name="GreenCore Industries", code="GRC", industry="Manufacturing")
+        db.add(greencore)
+        db.commit()
+        db.refresh(greencore)
+
         # ---------------- Departments ----------------
         manufacturing = Department(name="Manufacturing", code="MFG", head="R. Kapoor",
                                    employee_count=120, status="Active")
@@ -400,6 +514,66 @@ def run():
         ])
         db.commit()
 
+        # ---------------- Tag all of the above as GreenCore, then add more companies ----
+        for M in TENANT_MODELS:
+            db.query(M).filter(M.company_id.is_(None)).update(
+                {"company_id": greencore.id}, synchronize_session=False)
+        db.commit()
+
+        add_company(
+            db, name="EcoManufacturing Ltd", code="ECOM", industry="Heavy Manufacturing",
+            admin_email="admin@ecomanufacturing.com", admin_pw="admin123",
+            dept_specs=[("Assembly", "EM-ASM", "T. Wong", 90),
+                        ("Packaging", "EM-PKG", "L. Ortiz", 45),
+                        ("Quality", "EM-QA", "H. Singh", 30)],
+            employees=[("Wei Chen", "wei@ecomanufacturing.com", "EM-ASM", 340, 150, 3),
+                       ("Ivan Petrov", "ivan@ecomanufacturing.com", "EM-PKG", 210, 90, 2),
+                       ("Fatima Zahra", "fatima@ecomanufacturing.com", "EM-QA", 120, 60, 1)],
+            # heavy emitter -> lower Environmental -> lower overall
+            carbon_specs=[("EM-A1", "electricity_kwh", 60000, 49200, "EM-ASM", 30),
+                          ("EM-A2", "diesel_liter", 12000, 32160, "EM-PKG", 20)],
+            policies=[dict(title="EcoManufacturing Emissions Policy", category="Environmental",
+                           version="1.0",
+                           document=("EcoManufacturing Ltd targets a 20% cut in factory "
+                                     "emissions by 2027. The Assembly line, our biggest "
+                                     "emitter, must reach 800 tCO2e or lower by 2027. Waste "
+                                     "heat recovery is mandatory on all furnaces.")),
+                      dict(title="EcoManufacturing Ethics Code", category="Governance",
+                           version="1.0",
+                           document=("All EcoManufacturing suppliers must pass an annual "
+                                     "ethics audit. Compliance issues are reviewed monthly "
+                                     "and high-severity items resolved within 45 days."))],
+            goals=[dict(target_metric="Assembly Emissions", target_value=800, unit="tCO2e",
+                        deadline=date(2027, 12, 31), current_value=1150)],
+            overdue_issues=2, approved_csr=1,
+        )
+
+        add_company(
+            db, name="TerraLogistics", code="TERRA", industry="Logistics",
+            admin_email="admin@terralogistics.com", admin_pw="admin123",
+            dept_specs=[("Fleet", "TL-FLT", "M. Diallo", 70),
+                        ("Warehouse", "TL-WH", "E. Novak", 50)],
+            employees=[("Grace Kim", "grace@terralogistics.com", "TL-FLT", 480, 260, 4),
+                       ("Pablo Ruiz", "pablo@terralogistics.com", "TL-WH", 330, 170, 3),
+                       ("Aisha Bello", "aisha@terralogistics.com", "TL-FLT", 260, 120, 2)],
+            # cleaner operation -> higher Environmental -> higher overall
+            carbon_specs=[("TL-1", "diesel_liter", 3000, 8040, "TL-FLT", 15),
+                          ("TL-2", "electricity_kwh", 5000, 4100, "TL-WH", 10)],
+            policies=[dict(title="TerraLogistics Green Fleet Policy", category="Environmental",
+                           version="2.0",
+                           document=("TerraLogistics will electrify 100% of its delivery "
+                                     "fleet by 2028. Idling over 3 minutes is prohibited and "
+                                     "route optimisation is mandatory to cut fuel use 25%.")),
+                      dict(title="TerraLogistics Community Policy", category="Social",
+                           version="1.0",
+                           document=("TerraLogistics sponsors two community clean-up drives "
+                                     "per quarter and grants staff 20 paid volunteer hours "
+                                     "per year."))],
+            goals=[dict(target_metric="Fleet Electrification", target_value=100, unit="%",
+                        deadline=date(2028, 6, 30), current_value=55)],
+            overdue_issues=0, approved_csr=2,
+        )
+
         # ---------------- Auto-award existing badges + compute scores ----------------
         for u in db.query(User).all():
             gamification.check_and_award_badges(db, u)
@@ -408,20 +582,22 @@ def run():
         # ---------------- Build RAG index ----------------
         n = index.build(db)
 
-        overall = scoring.overall_scores(db)
         print("\n=== EcoPilot seed complete ===")
-        print(f"Departments: {db.query(Department).count()}  Users: {db.query(User).count()}")
+        print(f"Companies: {db.query(Company).count()}  "
+              f"Departments: {db.query(Department).count()}  Users: {db.query(User).count()}")
         print(f"RAG indexed chunks: {n} (backend: {index.backend})")
-        print(f"Overall ESG score: {overall['overall']}  "
-              f"(E {overall['environmental']} / S {overall['social']} / G {overall['governance']})")
+        print("\nCross-company ESG ranking:")
+        for c in db.query(Company).all():
+            s = scoring.overall_scores(db, c.id)
+            print(f"  {c.name:24s} overall {s['overall']:5}  "
+                  f"(E {s['environmental']} / S {s['social']} / G {s['governance']})")
         print("\nLogin credentials:")
-        print("  Admin    : admin@ecopilot.com   / admin123")
-        print("  Manager  : manager@ecopilot.com / manager123")
-        print("  Employee : priya@ecopilot.com   / priya123   (450 XP — approve her challenge to unlock 2 badges)")
-        print("  Employee : raj@ecopilot.com     / password123 (has a pending CSR to approve)")
-        print("  Employee : lena@ecopilot.com    / password123")
-        print("\nDemo: log in as manager -> approve Priya's 'Reduce Office Energy 15%' challenge "
-              "-> watch Eco Warrior + Challenge Champion unlock on the leaderboard.\n")
+        print("  [GreenCore]        manager@ecopilot.com / manager123   (Manager)")
+        print("                     priya@ecopilot.com   / priya123     (approve her challenge -> 2 badges)")
+        print("                     admin@ecopilot.com   / admin123     (Admin)")
+        print("  [EcoManufacturing] admin@ecomanufacturing.com / admin123")
+        print("  [TerraLogistics]   admin@terralogistics.com   / admin123")
+        print("\nNew: register your own company at /register, or join an existing one.\n")
     finally:
         db.close()
 
