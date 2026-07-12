@@ -24,7 +24,9 @@ export default function Companies() {
           {rows.map((c, i) => {
             const mine = c.company_id === user?.company_id
             return (
-              <div key={c.company_id} className={`card lift ${mine ? 'ring-2 ring-brand-400 shadow-[0_10px_40px_-14px_rgba(16,185,129,.4)]' : ''}`}>
+              <div key={c.company_id}
+                className={`card lift animate-float-in ${mine ? 'ring-2 ring-brand-400 shadow-[0_10px_40px_-14px_rgba(16,185,129,.4)]' : ''}`}
+                style={{ animationDelay: `${i * 70}ms` }}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">{medal(i)}</span>

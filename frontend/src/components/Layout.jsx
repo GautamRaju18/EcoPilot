@@ -43,7 +43,7 @@ function Notifications() {
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 && <div className="p-4 text-sm text-slate-400">No notifications</div>}
             {items.map((n) => (
-              <div key={n.id} className={`px-4 py-3 border-b border-slate-50 ${n.is_read ? 'opacity-60' : ''}`}>
+              <div key={n.id} className={`px-4 py-3 border-b border-slate-100/60 hover:bg-white/50 transition-colors ${n.is_read ? 'opacity-60' : ''}`}>
                 <div className="text-sm font-semibold text-slate-800">{n.title}</div>
                 {n.message && <div className="text-xs text-slate-500">{n.message}</div>}
               </div>

@@ -73,8 +73,9 @@ export default function Dashboard() {
       <div className="card">
         <h3 className="font-semibold text-slate-700 mb-4">Department Scorecards</h3>
         <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {data.departments.map((d) => (
-            <div key={d.department_id} className="glass lift rounded-xl p-4">
+          {data.departments.map((d, i) => (
+            <div key={d.department_id} className="glass lift rounded-xl p-4 animate-float-in"
+              style={{ animationDelay: `${i * 60}ms` }}>
               <div className="flex items-center justify-between mb-3">
                 <span className="font-semibold text-slate-700">{d.department}</span>
                 <span className="text-lg font-extrabold text-brand-600">{d.total}</span>
@@ -100,8 +101,8 @@ export default function Dashboard() {
             </tr></thead>
             <tbody>
               {board.slice(0, 6).map((u, i) => (
-                <tr key={u.user_id}>
-                  <td className="td font-bold text-slate-400">{i + 1}</td>
+                <tr key={u.user_id} className="hover:bg-white/40 transition-colors">
+                  <td className="td font-bold text-center text-base">{['🥇', '🥈', '🥉'][i] || <span className="text-slate-400 text-sm">{i + 1}</span>}</td>
                   <td className="td font-semibold text-slate-700">{u.full_name}</td>
                   <td className="td text-slate-500">{u.department || '—'}</td>
                   <td className="td">⭐ {u.xp}</td>
