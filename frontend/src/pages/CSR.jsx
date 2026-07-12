@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api'
+import { usePolling } from '../hooks'
 import { useAuth } from '../auth'
 import { Empty, Spinner, StatusPill } from '../components/ui'
 
@@ -14,7 +15,7 @@ export default function CSR() {
     api.get('/csr/participations').then(setParts)
     api.get('/users').then(setUsers).catch(() => {})
   }
-  useEffect(load, [])
+  usePolling(load, 6000)
 
   const userName = (id) => users.find((u) => u.id === id)?.full_name || `#${id}`
   const actTitle = (id) => activities?.find((a) => a.id === id)?.title || `#${id}`

@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api'
+import { usePolling } from '../hooks'
 import { useAuth } from '../auth'
 import { Empty, Field, Pill, Spinner, StatusPill } from '../components/ui'
 
@@ -15,7 +16,7 @@ export default function Governance() {
     api.get('/governance/issues').then(setIssues)
     api.get('/governance/audits').then(setAudits)
   }
-  useEffect(load, [])
+  usePolling(load, 6000)
 
   const create = async (e) => {
     e.preventDefault()

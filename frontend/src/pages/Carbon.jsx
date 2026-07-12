@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api'
+import { usePolling } from '../hooks'
 import { Empty, Field, Spinner } from '../components/ui'
 
 export default function Carbon() {
@@ -12,10 +13,10 @@ export default function Carbon() {
 
   const load = () => api.get('/carbon').then(setTxs)
   useEffect(() => {
-    load()
     api.get('/emission-factors').then(setFactors)
     api.get('/departments').then(setDepts)
   }, [])
+  usePolling(load, 8000)  // live transaction list
 
   const factor = useMemo(
     () => factors.find((f) => f.id === Number(form.emission_factor_id)),

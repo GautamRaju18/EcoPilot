@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api'
+import { usePolling } from '../hooks'
 import { useAuth } from '../auth'
 import { Empty, Pill, Spinner, StatusPill } from '../components/ui'
 
@@ -21,7 +22,7 @@ export default function Challenges() {
     api.get('/my-badges').then(setBadges).catch(() => {})
     api.get('/users').then(setUsers).catch(() => {})
   }
-  useEffect(load, [])
+  usePolling(load, 6000)
 
   const userName = (id) => users.find((u) => u.id === id)?.full_name || `#${id}`
   const chTitle = (id) => challenges?.find((c) => c.id === id)?.title || `#${id}`

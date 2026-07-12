@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { api } from '../api'
+import { usePolling } from '../hooks'
 import { Bar, ScoreRing, Spinner, StatCard, Empty } from '../components/ui'
 
 export default function Dashboard() {
@@ -7,11 +8,12 @@ export default function Dashboard() {
   const [board, setBoard] = useState([])
   const [ai, setAi] = useState(null)
 
-  useEffect(() => {
+  // Live: re-poll every 6s so scores/leaderboard update as data changes elsewhere.
+  usePolling(() => {
     api.get('/scores/overview').then(setData).catch(() => {})
     api.get('/leaderboard').then(setBoard).catch(() => {})
     api.get('/ai/status').then(setAi).catch(() => {})
-  }, [])
+  }, 6000)
 
   if (!data) return <Spinner />
   const o = data.overall
@@ -20,8 +22,13 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">ESG Dashboard</h1>
-          <p className="text-sm text-slate-400">Live organisation-wide sustainability performance</p>
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            ESG Dashboard
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600">
+              <span className="h-2 w-2 rounded-full bg-brand-500 animate-pulse" /> Live
+            </span>
+          </h1>
+          <p className="text-sm text-slate-400">Organisation-wide sustainability performance · auto-refreshing</p>
         </div>
         {ai && (
           <div className="text-xs text-slate-400">
