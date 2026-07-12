@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from .database import Base, engine
 from .routers import (
     auth, carbon, challenges, companies, copilot, csr, gamification, governance,
-    master, notifications, scoring,
+    master, notifications, onboarding, scoring,
 )
 from .utils import UPLOAD_DIR
 
@@ -24,7 +24,7 @@ app.add_middleware(
 )
 
 for r in (auth, companies, master, carbon, csr, challenges, governance,
-          gamification, scoring, notifications, copilot):
+          gamification, scoring, notifications, onboarding, copilot):
     app.include_router(r.router)
 
 # Serve uploaded proof files
