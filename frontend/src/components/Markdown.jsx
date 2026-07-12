@@ -23,7 +23,7 @@ export default function Markdown({ text = '', className = '' }) {
 
   for (const raw of lines) {
     const line = raw.replace(/\s+$/, '')
-    const bullet = line.match(/^\s*[-•*]\s+(.*)/)
+    const bullet = line.match(/^\s*[-•*+]\s+(.*)/)
     const num = line.match(/^\s*\d+\.\s+(.*)/)
     const head = line.match(/^#{1,3}\s+(.*)/)
     if (bullet) { (list = list || []).push(`<li>${inline(bullet[1])}</li>`) }

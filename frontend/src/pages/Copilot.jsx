@@ -29,6 +29,7 @@ export default function Copilot() {
     try {
       const res = await api.post('/ai/ask', { question: text })
       setMsgs((m) => [...m, { role: 'bot', text: res.answer, sources: res.sources, provider: res.provider }])
+      setStatus((s) => (s ? { ...s, provider: res.provider } : s))  // reflect real provider used
     } catch (e) {
       setMsgs((m) => [...m, { role: 'bot', text: 'Sorry — ' + e.message }])
     } finally { setBusy(false) }
