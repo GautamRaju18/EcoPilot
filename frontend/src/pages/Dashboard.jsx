@@ -1,25 +1,40 @@
 import { useState } from 'react'
 import { api } from '../api'
 import { usePolling } from '../hooks'
+import { useAuth } from '../auth'
+import Onboarding from '../components/Onboarding'
 import { Bar, ScoreRing, Spinner, StatCard, Empty } from '../components/ui'
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [data, setData] = useState(null)
   const [board, setBoard] = useState([])
   const [ai, setAi] = useState(null)
+  const key = `ecopilot_onboarded_${user?.company_id || ''}`
+  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(key))
 
-  // Live: re-poll every 6s so scores/leaderboard update as data changes elsewhere.
-  usePolling(() => {
+  const load = () => {
     api.get('/scores/overview').then(setData).catch(() => {})
     api.get('/leaderboard').then(setBoard).catch(() => {})
     api.get('/ai/status').then(setAi).catch(() => {})
-  }, 6000)
+  }
+  // Live: re-poll every 6s so scores/leaderboard update as data changes elsewhere.
+  usePolling(load, 6000)
 
   if (!data) return <Spinner />
   const o = data.overall
+  const isEmpty = Array.isArray(data.departments) && data.departments.length === 0
+  const showOnboarding = isEmpty && !dismissed
 
   return (
     <div className="space-y-6">
+      {showOnboarding && (
+        <Onboarding
+          companyName={user?.company?.name}
+          onDone={() => { setDismissed(true); load() }}
+          onDismiss={() => { localStorage.setItem(key, '1'); setDismissed(true) }}
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
