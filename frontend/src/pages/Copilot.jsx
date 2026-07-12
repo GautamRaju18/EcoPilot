@@ -14,28 +14,30 @@ const GREETING = { role: 'bot', text: "Hi! I'm **EcoPilot**. Ask me anything abo
 
 export default function Copilot() {
   const { user } = useAuth()
-  // Persist the conversation per-company for the whole session so it survives
-  // navigating between sections and page reloads (cleared on logout / tab close).
-  const chatKey = `ecopilot_chat_${user?.company_id ?? 'anon'}`
-  const [msgs, setMsgs] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(chatKey)
-      return saved ? JSON.parse(saved) : [GREETING]
-    } catch { return [GREETING] }
-  })
+  const [msgs, setMsgs] = useState([GREETING])
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState(null)
   const endRef = useRef(null)
 
   useEffect(() => { api.get('/ai/status').then(setStatus).catch(() => {}) }, [])
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, busy])
-  // Save on every change
+  // Load the persisted conversation from the server — survives navigation,
+  // page reloads AND different devices/browsers (per-user, backed by the DB).
   useEffect(() => {
-    try { sessionStorage.setItem(chatKey, JSON.stringify(msgs)) } catch { /* quota */ }
-  }, [msgs, chatKey])
+    api.get('/ai/history').then((h) => {
+      if (h && h.length) {
+        setMsgs([GREETING, ...h.map((m) => (
+          { role: m.role, text: m.content, sources: m.sources, provider: m.provider }
+        ))])
+      }
+    }).catch(() => {})
+  }, [])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs, busy])
 
-  const clearChat = () => { setMsgs([GREETING]); sessionStorage.removeItem(chatKey) }
+  const clearChat = async () => {
+    setMsgs([GREETING])
+    try { await api.del('/ai/history') } catch { /* ignore */ }
+  }
 
   const ask = async (question) => {
     const text = question || q
