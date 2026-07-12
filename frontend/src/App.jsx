@@ -10,6 +10,7 @@ import Challenges from './pages/Challenges'
 import Governance from './pages/Governance'
 import Copilot from './pages/Copilot'
 import Report from './pages/Report'
+import Admin from './pages/Admin'
 
 function Protected({ children }) {
   const { user, loading } = useAuth()
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/governance" element={<Protected><Governance /></Protected>} />
       <Route path="/copilot" element={<Protected><Copilot /></Protected>} />
       <Route path="/report" element={<Protected><Report /></Protected>} />
+      <Route path="/admin" element={<Protected><Admin /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

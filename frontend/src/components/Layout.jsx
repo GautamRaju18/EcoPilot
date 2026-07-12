@@ -12,6 +12,7 @@ const NAV = [
   { to: '/governance', label: 'Governance', icon: '⚖️' },
   { to: '/copilot', label: 'Ask EcoPilot', icon: '🤖' },
   { to: '/report', label: 'ESG Report', icon: '📄' },
+  { to: '/admin', label: 'Data Management', icon: '🗂️', managerOnly: true },
 ]
 
 function Notifications() {
@@ -54,7 +55,8 @@ function Notifications() {
 }
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth()
+  const { user, logout, isManager } = useAuth()
+  const nav = NAV.filter((n) => !n.managerOnly || isManager)
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
@@ -67,7 +69,7 @@ export default function Layout({ children }) {
           </div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {NAV.map((n) => (
+          {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition ${
